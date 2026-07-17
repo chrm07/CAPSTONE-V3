@@ -19,7 +19,7 @@ import {
   createDocumentDb, 
   deleteDocumentDb, 
   updateApplicationStatusDb, 
-  createNotificationDb,
+  notifyAdminsDb,
   createApplicationDb
 } from "@/lib/storage"
 
@@ -236,15 +236,11 @@ export function DocumentUpload({ onUploadComplete }: DocumentUploadProps) {
         await updateApplicationStatusDb(appSnap.docs[0].id, "pending");
       }
       
-      await createNotificationDb({
-        userId: "admin", 
-        title: "New Application Submitted",
-        message: `${user.name} has submitted all 9 required documents and is ready for your review.`,
-        type: "info",
-        actionUrl: `/admin/applications?studentId=${user.id}`,
-        createdAt: new Date().toISOString(),
-        isRead: false
-      })
+      await notifyAdminsDb(
+        "New Application Submitted",
+        `${user.name} has submitted all 9 required documents and is ready for your review.`,
+        `/admin/applications?studentId=${user.id}`
+      )
 
       toast({
         title: "Application Submitted! 🚀",

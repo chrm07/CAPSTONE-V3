@@ -170,7 +170,7 @@ export function ApplicationsTable({ limit }: ApplicationsTableProps) {
           title: "Application Approved! 🎉",
           message: "Congratulations! Your scholarship application has been verified and approved. Check your portal for claiming instructions.",
           type: "success",
-          actionUrl: "/student/dashboard"
+          actionUrl: "/student/qrcode"
         })
       }
     } catch (error) {

@@ -265,7 +265,7 @@ export default function ApplicationsPage() {
         message: status === "approved" 
           ? "Your application has been approved! You can now view your QR Ticket." 
           : `Action Required: Resubmit your application (${selectedDocsForResubmit.length} document(s)): ${feedbackText}`,
-        link: "/student/documents",
+        link: status === "approved" ? "/student/qrcode" : "/student/documents",
         read: false,
         createdAt: new Date().toISOString()
       });

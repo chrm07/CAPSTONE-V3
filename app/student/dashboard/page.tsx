@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/components/ui/use-toast"
 import { collection, query, where, onSnapshot, doc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { isSubmissionActive, isDistributionActive } from "@/lib/storage"
 import { 
   School, CheckCircle, FileText, ArrowRight, 
   CalendarDays, UploadCloud, Loader2, Banknote, 
@@ -29,9 +30,9 @@ function getTimelineSteps(application: any, schedule: any, studentBarangay: stri
       ? schedule.targetBarangays.includes(studentBarangay) 
       : true;
 
-  const hasFinancialSchedule = schedule?.distributionOpen && isTargetBarangay;
+  const hasFinancialSchedule = isDistributionActive(schedule) && isTargetBarangay;
   const isExtension = schedule?.distributionType === "extension" || schedule?.isExtended;
-  const distributionEnded = !schedule?.distributionOpen && schedule?.distributionStart;
+  const distributionEnded = !isDistributionActive(schedule) && schedule?.distributionStart;
 
   return [
     { 
@@ -173,7 +174,7 @@ export default function StudentDashboard() {
   const isTargetBarangay = schedule?.targetBarangays && Array.isArray(schedule.targetBarangays) 
     ? schedule.targetBarangays.includes(studentData.barangay) 
     : true;
-  const isDistributionActive = schedule?.distributionOpen && isTargetBarangay;
+  const isDistrOpen = isDistributionActive(schedule) && isTargetBarangay;
 
   let messageData = { 
     color: "slate", icon: CalendarDays, 
@@ -189,7 +190,7 @@ export default function StudentDashboard() {
       text: "Congrats, you have received the financial assistance. Please wait for the next financial assistance.",
       actionText: "View History", actionLink: "/student/history"
     };
-  } else if (isDistributionActive && isApproved) {
+  } else if (isDistrOpen && isApproved) {
     if (schedule?.distributionType === "extension" || schedule?.isExtended) {
       messageData = { 
         color: "purple", icon: Banknote, 
@@ -205,7 +206,7 @@ export default function StudentDashboard() {
         actionText: "View QR Pass", actionLink: "/student/qrcode"
       };
     }
-  } else if (isApproved && !isDistributionActive) {
+  } else if (isApproved && !isDistrOpen) {
     if (schedule?.distributionOpen && !isTargetBarangay) {
       // Distribution is open, but NOT for this student's barangay yet
       messageData = { 
@@ -238,7 +239,7 @@ export default function StudentDashboard() {
       text: `Reason: ${currentApp?.feedback || currentApp?.remarks || currentApp?.resubmissionReason || "Please review your documents and resubmit."}${docsList}`,
       actionText: "Update Documents", actionLink: "/student/documents"
     };
-  } else if (schedule?.submissionOpen) {
+  } else if (isSubmissionActive(schedule)) {
     messageData = { 
       color: "indigo", icon: UploadCloud, 
       title: "The submission is now open", 

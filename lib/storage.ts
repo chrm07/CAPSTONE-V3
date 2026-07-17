@@ -5,12 +5,32 @@ import { db } from "./firebase";
 // 1. TYPE DEFINITIONS
 // ============================================================================
 
-export type AdminRole = "head_admin" | "verifier_staff" | "scanner_staff"
+export type PermissionKey = "dashboard" | "approvedEmails" | "applications" | "scholars" | "scheduling" | "qrVerification" | "reports"
 
-export const ADMIN_PERMISSIONS: Record<AdminRole, string[]> = {
-  head_admin: ["dashboard", "scholars", "applications", "approved-emails", "verification", "reports", "scheduling", "staff-management", "settings"],
-  verifier_staff: ["dashboard", "scholars", "applications", "verification"],
-  scanner_staff: ["dashboard", "verification"],
+export const ALL_PERMISSIONS: PermissionKey[] = [
+  "dashboard", "approvedEmails", "applications", "scholars", "scheduling", "qrVerification", "reports"
+]
+
+export type Permissions = Record<PermissionKey, boolean>
+
+export const DEFAULT_PERMISSIONS: Permissions = {
+  dashboard: false,
+  approvedEmails: false,
+  applications: false,
+  scholars: false,
+  scheduling: false,
+  qrVerification: false,
+  reports: false,
+}
+
+export type AdminRole = "admin" | "staff" | "head_admin" | "verifier_staff" | "scanner_staff"
+
+// Legacy role-based permission map (backward compatibility)
+export const ADMIN_PERMISSIONS: Record<string, string[]> = {
+  head_admin: ["dashboard", "scholars", "applications", "approvedEmails", "qrVerification", "reports", "scheduling", "staff-management", "settings"],
+  verifier_staff: ["dashboard", "scholars", "applications", "qrVerification"],
+  scanner_staff: ["dashboard", "qrVerification"],
+  admin: [...ALL_PERMISSIONS, "staff-management", "settings"],
 }
 
 export type User = {
@@ -20,6 +40,7 @@ export type User = {
   password: string
   role: "student" | "admin"
   adminRole?: AdminRole 
+  permissions?: Permissions 
   profileData?: StudentProfile | AdminProfile
   isPWD?: boolean 
   studentProfile?: any 
@@ -137,18 +158,81 @@ export type SubmissionSchedule = {
   createdBy: string
 }
 
+const PERMISSION_ROUTE_MAP: Record<PermissionKey, string> = {
+  dashboard: "/admin/dashboard",
+  approvedEmails: "/admin/approved-emails",
+  applications: "/admin/applications",
+  scholars: "/admin/scholars",
+  scheduling: "/admin/scheduling",
+  qrVerification: "/admin/verification",
+  reports: "/admin/reports",
+}
+
+export function getDefaultAdminRoute(user: User | null): string {
+  if (!user || user.role !== "admin") return "/login"
+
+  // Head admin (new or legacy) → main dashboard
+  if (user.adminRole === "admin" || user.adminRole === "head_admin") return "/admin/dashboard"
+
+  // Legacy staff → their dedicated dashboards
+  if (user.adminRole === "verifier_staff") return "/admin/verifier-dashboard"
+  if (user.adminRole === "scanner_staff") return "/admin/scanner-dashboard"
+
+  // Staff with permissions object → first enabled permission
+  if (user.permissions) {
+    for (const key of ALL_PERMISSIONS) {
+      if (user.permissions[key]) {
+        return PERMISSION_ROUTE_MAP[key]
+      }
+    }
+  }
+
+  // No permissions at all
+  return "/admin/no-access"
+}
+
 // ============================================================================
 // 2. USERS, AUTH & PERMISSIONS
 // ============================================================================
 
-export function hasPermission(user: User | null, permission: string): boolean {
-  if (!user || user.role !== "admin") return false
-  const adminRole = user.adminRole || "head_admin"
-  return ADMIN_PERMISSIONS[adminRole]?.includes(permission) || false
+const PERMISSION_NAME_MAP: Record<string, PermissionKey> = {
+  "approved-emails": "approvedEmails",
+  "verification": "qrVerification",
 }
 
-export function getAdminRoleLabel(adminRole: AdminRole): string {
+export function hasPermission(user: User | null, permission: string): boolean {
+  if (!user || user.role !== "admin") return false
+
+  const adminRole = user.adminRole as string || ""
+
+  // Staff management and settings are always admin-only (new "admin" or legacy "head_admin")
+  if (permission === "staff-management" || permission === "settings") {
+    return adminRole === "admin" || adminRole === "head_admin"
+  }
+
+  // New system: admin (head admin) has all permissions
+  if (adminRole === "admin") return true
+
+  // Map legacy permission name if needed
+  const permKey = PERMISSION_NAME_MAP[permission] || permission
+
+  // Check new permissions object
+  if (user.permissions && typeof user.permissions === "object") {
+    return user.permissions[permKey as PermissionKey] === true
+  }
+
+  // Legacy: check old role-based permissions
+  if (adminRole && ADMIN_PERMISSIONS[adminRole]) {
+    return ADMIN_PERMISSIONS[adminRole].includes(permKey)
+  }
+
+  return false
+}
+
+export function getAdminRoleLabel(adminRole: string): string {
   switch (adminRole) {
+    case "admin": return "Head Administrator"
+    case "staff": return "Staff"
     case "head_admin": return "Head Administrator"
     case "verifier_staff": return "Verification Staff"
     case "scanner_staff": return "QR Scanner Staff"
@@ -225,24 +309,24 @@ export async function getStaffMembersDb(): Promise<User[]> {
   return snapshot.docs.map(doc => doc.data() as User)
 }
 
-export async function createStaffMemberDb(data: { name: string; email: string; password: string; adminRole: AdminRole }) {
+export async function createStaffMemberDb(data: { name: string; email: string; password: string; permissions: Permissions }) {
   const existing = await getUserByEmailDb(data.email)
   if (existing) return { success: false, error: "Email already exists." }
 
   const userId = `admin-${Date.now()}`
   const newUser: User = {
     id: userId, name: data.name, email: data.email.toLowerCase(), password: data.password,
-    role: "admin", adminRole: data.adminRole,
-    profileData: { fullName: data.name, email: data.email.toLowerCase(), contactNumber: "", position: getAdminRoleLabel(data.adminRole), department: "Scholarship Office" }
+    role: "admin", adminRole: "staff", permissions: data.permissions,
+    profileData: { fullName: data.name, email: data.email.toLowerCase(), contactNumber: "", position: "Staff", department: "Scholarship Office" }
   }
   
   await setDoc(doc(db, "users", userId), newUser)
   return { success: true, user: newUser }
 }
 
-export async function updateStaffRoleDb(userId: string, newRole: AdminRole): Promise<boolean> {
+export async function updateStaffPermissionsDb(userId: string, permissions: Permissions): Promise<boolean> {
   try {
-    await updateDoc(doc(db, "users", userId), { adminRole: newRole, "profileData.position": getAdminRoleLabel(newRole) })
+    await updateDoc(doc(db, "users", userId), { permissions })
     return true
   } catch (e) { return false }
 }
@@ -440,13 +524,21 @@ export async function notifyAllStudentsDb(title: string, message: string, action
 export async function notifyAdminsDb(title: string, message: string, actionUrl: string) {
   const q = query(collection(db, "users"), where("role", "==", "admin"))
   const snapshot = await getDocs(q)
-  const promises = snapshot.docs.map(docSnap => {
-    const admin = docSnap.data() as User
-    if (admin.adminRole === "head_admin" || admin.adminRole === "verifier_staff" || !admin.adminRole) {
-      return createNotificationDb({ userId: admin.id, title, message, type: "info", actionUrl })
-    }
+  const batch = writeBatch(db)
+  snapshot.docs.forEach(docSnap => {
+    const notifRef = doc(collection(db, "notifications"))
+    batch.set(notifRef, {
+      id: notifRef.id,
+      userId: docSnap.id,
+      title,
+      message,
+      type: "info" as const,
+      actionUrl,
+      isRead: false,
+      createdAt: new Date().toISOString()
+    })
   })
-  await Promise.all(promises)
+  await batch.commit()
 }
 
 export async function createBarangayNotificationsDb(barangays: string[], notificationData: Omit<Notification, "id" | "userId" | "isRead" | "createdAt">) {
@@ -605,4 +697,32 @@ export async function getResetTokenDb(token: string): Promise<ResetToken | null>
 
 export async function deleteResetTokenDb(token: string) {
   await deleteDoc(doc(db, "password_resets", token))
+}
+
+export function isSubmissionActive(schedule: any): boolean {
+  if (!schedule?.submissionOpen) return false
+  if (schedule.submissionEnd) {
+    try { return new Date() <= new Date(schedule.submissionEnd) } catch { return true }
+  }
+  return true
+}
+
+export function isDistributionActive(schedule: any): boolean {
+  if (!schedule?.distributionOpen) return false
+  if (schedule.distributionEnd) {
+    try { return new Date() <= new Date(schedule.distributionEnd) } catch { return true }
+  }
+  return true
+}
+
+export function hasScheduleEndedOrClosed(schedule: any, type: 'submission' | 'distribution'): boolean {
+  if (!schedule) return true
+  const isOpen = type === 'submission' ? schedule.submissionOpen : schedule.distributionOpen
+  if (!isOpen) return true
+  const endField = type === 'submission' ? 'submissionEnd' : 'distributionEnd'
+  const endDate = schedule[endField]
+  if (endDate) {
+    try { return new Date() > new Date(endDate) } catch { return false }
+  }
+  return false
 }

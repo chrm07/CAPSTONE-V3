@@ -20,11 +20,29 @@ export function QrScanner({ onResult }: QrScannerProps) {
   const scannerContainerRef = useRef<HTMLDivElement | null>(null)
   
   const onResultRef = useRef(onResult)
-  const hasScannedRef = useRef(false)
 
   useEffect(() => {
     onResultRef.current = onResult
   }, [onResult])
+
+  const cleanupScanner = () => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          scannerRef.current.stop().catch(() => {}).then(() => {
+            try { scannerRef.current?.clear() } catch {}
+          })
+        } else {
+          try { scannerRef.current.clear() } catch {}
+        }
+      } catch {}
+      scannerRef.current = null
+    }
+    if (scannerContainerRef.current && containerRef.current?.contains(scannerContainerRef.current)) {
+      try { containerRef.current.removeChild(scannerContainerRef.current) } catch {}
+    }
+    scannerContainerRef.current = null
+  }
 
   const initializeScanner = async () => {
     if (!containerRef.current) return
@@ -32,19 +50,14 @@ export function QrScanner({ onResult }: QrScannerProps) {
     const qrScannerId = "qr-scanner"
     setError(null)
     setIsLoading(true)
-    hasScannedRef.current = false
 
     try {
-      // 1. Force the browser to request camera permissions and fetch devices first
       const devices = await Html5Qrcode.getCameras()
       if (!devices || devices.length === 0) {
         throw new Error("NotFoundError")
       }
 
-      if (scannerContainerRef.current && containerRef.current?.contains(scannerContainerRef.current)) {
-        containerRef.current.removeChild(scannerContainerRef.current)
-        scannerContainerRef.current = null
-      }
+      cleanupScanner()
 
       const scannerContainer = document.createElement("div")
       scannerContainer.id = qrScannerId
@@ -54,7 +67,8 @@ export function QrScanner({ onResult }: QrScannerProps) {
       scannerContainerRef.current = scannerContainer
       containerRef.current.appendChild(scannerContainer)
 
-      scannerRef.current = new Html5Qrcode(qrScannerId)
+      const scanner = new Html5Qrcode(qrScannerId)
+      scannerRef.current = scanner
 
       const config = {
         fps: 15, 
@@ -71,26 +85,18 @@ export function QrScanner({ onResult }: QrScannerProps) {
       }
 
       const onSuccess = (decodedText: string) => {
-        if (!hasScannedRef.current) {
-          hasScannedRef.current = true
-          console.log("[v0] QR Scanner SUCCESS - Decoded:", decodedText)
-          
-          if (scannerRef.current) {
-             scannerRef.current.pause(true)
-          }
-          
-          onResultRef.current(decodedText)
+        console.log("[v0] QR Scanner SUCCESS - Decoded:", decodedText)
+        if (scannerRef.current) {
+          scannerRef.current.pause(true)
         }
+        onResultRef.current(decodedText)
       }
 
-      // 2. Robust Fallback Logic
       try {
-        // Try requesting the rear camera natively first
-        await scannerRef.current.start({ facingMode: "environment" }, config, onSuccess, () => {})
+        await scanner.start({ facingMode: "environment" }, config, onSuccess, () => {})
       } catch (err) {
         console.warn("Rear camera request failed, falling back to specific device ID.", err)
-        // Fall back to the first available authorized camera (resolves desktop/laptop issues)
-        await scannerRef.current.start(devices[0].id, config, onSuccess, () => {})
+        await scanner.start(devices[0].id, config, onSuccess, () => {})
       }
       
       setIsLoading(false)
@@ -98,7 +104,6 @@ export function QrScanner({ onResult }: QrScannerProps) {
       console.error("[v0] Scanner initialization failed:", err)
       let errorMessage = "Camera access failed. "
       
-      // 3. User-Friendly Error Mapping
       if (err instanceof Error || typeof err === "string") {
         const msg = String(err).toLowerCase()
         if (msg.includes("notallowederror") || msg.includes("permission denied") || msg.includes("not allowed")) {
@@ -133,11 +138,7 @@ export function QrScanner({ onResult }: QrScannerProps) {
     initializeScanner()
 
     return () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().then(() => {
-          scannerRef.current?.clear()
-        }).catch(console.error)
-      }
+      cleanupScanner()
     }
   }, []) 
 

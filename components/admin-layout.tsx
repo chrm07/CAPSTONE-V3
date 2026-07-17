@@ -54,6 +54,7 @@ import {
   markNotificationAsUnreadDb,
   deleteNotificationDb,
   hasPermission,
+  getDefaultAdminRoute,
 } from "@/lib/storage"
 
 import { collection, query, where, onSnapshot, writeBatch, doc, updateDoc } from "firebase/firestore"
@@ -95,10 +96,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Listen for admin bell notifications
   useEffect(() => {
     if (!user || user.role !== "admin") return
-    
-    if (user.adminRole === "scanner_staff" || user.adminRole === "verifier_staff") return
 
-    const qDocs = query(collection(db, "notifications"), where("userId", "==", "admin"))
+    const qDocs = query(collection(db, "notifications"), where("userId", "==", user.id))
     const unsubscribeApp = onSnapshot(qDocs, (snapshot) => {
        const rtNotifs = snapshot.docs.map(doc => {
          const data = doc.data() as any
@@ -122,7 +121,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   // Listen exclusively for active, pending applications to update the nav badge
   useEffect(() => {
     if (!user || user.role !== "admin") return
-    if (user.adminRole === "scanner_staff" || user.adminRole === "verifier_staff") return
+    if (!hasPermission(user, "applications")) return
 
     const qApps = query(collection(db, "applications"), where("isSubmitted", "==", true))
     const unsubscribeApps = onSnapshot(qApps, (snapshot) => {
@@ -224,11 +223,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
   }
 
-  const getDashboardUrl = () => {
-    if (user?.adminRole === "scanner_staff") return "/admin/scanner-dashboard"
-    if (user?.adminRole === "verifier_staff") return "/admin/verifier-dashboard"
-    return "/admin/dashboard" 
-  }
+  const getDashboardUrl = () => getDefaultAdminRoute(user)
 
   const allNavigationItems = [
     { href: getDashboardUrl(), icon: LayoutDashboard, label: "Dashboard", permission: "dashboard" },
@@ -282,7 +277,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const profilePicUrl = user?.profilePicture || (user?.profileData as any)?.profilePicture || null;
-  const isHeadAdmin = !user?.adminRole || user?.adminRole === "head_admin";
 
   return (
     <div className="flex h-screen flex-col bg-slate-50/50 overflow-hidden text-left">
@@ -400,8 +394,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             )}
           </div>
 
-          {isHeadAdmin && (
-            <DropdownMenu open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
+          <DropdownMenu open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative rounded-full text-white hover:bg-white/10">
                   <Bell className="h-5 w-5" />
@@ -484,7 +477,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

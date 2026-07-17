@@ -13,7 +13,7 @@ export async function GET() {
       email: "admin@carmona.gov.ph",
       password: "Admin123",
       role: "admin",
-      adminRole: "head_admin",
+      adminRole: "admin",
       profileData: {
         fullName: "Maria Elena Santos",
         email: "admin@carmona.gov.ph",

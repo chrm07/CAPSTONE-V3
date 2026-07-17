@@ -22,6 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useAuth } from "@/contexts/auth-context"
 import { collection, onSnapshot, query, doc, setDoc, getDocs, writeBatch, addDoc, where } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { isSubmissionActive, isDistributionActive } from "@/lib/storage"
 
 type Barangay = {
   id: string;
@@ -323,6 +324,20 @@ export default function SchedulingPage() {
       }, { merge: true });
 
       await batch.commit();
+
+      const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student")));
+      const notifPromises = usersSnap.docs.map(u =>
+        addDoc(collection(db, "notifications"), {
+          to: "student",
+          userId: u.id,
+          title: "Scholarship Cycle Ended",
+          message: "The current scholarship cycle has officially ended. You may now review your application history and wait for future announcements.",
+          link: "/student/history",
+          read: false,
+          createdAt: new Date().toISOString()
+        })
+      );
+      await Promise.all(notifPromises);
       
       toast({ title: "Cycle Ended", description: "Applications securely archived. Dashboards reset.", className: "bg-emerald-600 text-white" });
       setIsResetDialogOpen(false);
@@ -483,7 +498,7 @@ export default function SchedulingPage() {
                     <CardTitle className="text-xl font-black text-slate-800 uppercase tracking-tight">Submission Portal</CardTitle>
                     <CardDescription className="font-medium text-slate-500">Allow students to submit applications for the current cycle.</CardDescription>
                   </div>
-                  {!schedule?.submissionOpen ? (
+                  {!isSubmissionActive(schedule) ? (
                     <Button onClick={() => setIsSubModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md font-bold h-11 px-6">
                       <Plus className="w-4 h-4 mr-2" /> Open Submissions
                     </Button>
@@ -495,7 +510,7 @@ export default function SchedulingPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   {isFetching ? <div className="py-24 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div> : 
-                   (!schedule?.submissionStart && !schedule?.submissionOpen) ? (
+                   (!schedule?.submissionStart && !isSubmissionActive(schedule)) ? (
                     <div className="py-24 text-center text-slate-400 flex flex-col items-center">
                       <UploadCloud className="h-12 w-12 mb-4 opacity-20" />
                       <p className="font-bold uppercase tracking-widest text-sm text-slate-500">No active submission schedule.</p>
@@ -518,7 +533,7 @@ export default function SchedulingPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {schedule.submissionOpen ? (
+                            {isSubmissionActive(schedule) ? (
                                 <Badge className="bg-emerald-50 text-emerald-700 border-none shadow-none font-bold px-3 py-1 uppercase tracking-widest text-[10px]">Active</Badge>
                             ) : (
                                 <Badge className="bg-red-50 text-red-700 border-none shadow-none font-bold px-3 py-1 uppercase tracking-widest text-[10px]">Closed</Badge>
@@ -549,7 +564,7 @@ export default function SchedulingPage() {
                     <Button variant="outline" onClick={() => setIsManageBarangaysOpen(true)} className="rounded-xl font-bold h-11 px-4 border-slate-200 text-slate-600 bg-white hover:bg-slate-50">
                       <MapPin className="w-4 h-4 mr-2" /> Manage Barangays
                     </Button>
-                    {!schedule?.distributionOpen ? (
+                    {!isDistributionActive(schedule) ? (
                       <Button onClick={() => setIsAddModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md font-bold h-11 px-6">
                         <Plus className="w-4 h-4 mr-2" /> Open Distribution
                       </Button>
@@ -564,7 +579,7 @@ export default function SchedulingPage() {
                 <CardContent className="p-0">
                   {isFetching ? (
                     <div className="py-24 flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600" /></div>
-                  ) : (!schedule?.distributionStart && !schedule?.distributionOpen) ? (
+                  ) : (!schedule?.distributionStart && !isDistributionActive(schedule)) ? (
                     <div className="py-24 text-center text-slate-400 flex flex-col items-center">
                       <CalendarDays className="h-12 w-12 mb-4 opacity-20" />
                       <p className="font-bold uppercase tracking-widest text-sm text-slate-500">No active distribution schedule.</p>
@@ -581,11 +596,11 @@ export default function SchedulingPage() {
                           <Table>
                             <TableHeader className="bg-slate-50/50">
                               <TableRow className="border-slate-200">
-                                <TableHead className="pl-6 font-black text-slate-400 uppercase text-[10px] tracking-widest py-4">Barangay(s)</TableHead>
-                                <TableHead className="font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Date Range</TableHead>
-                                <TableHead className="font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Time</TableHead>
-                                <TableHead className="font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Amount</TableHead>
-                                <TableHead className="font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Status</TableHead>
+                                <TableHead className="w-[35%] pl-6 font-black text-slate-400 uppercase text-[10px] tracking-widest py-4">Barangay(s)</TableHead>
+                                <TableHead className="w-[25%] font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Date Range</TableHead>
+                                <TableHead className="w-[15%] font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Time</TableHead>
+                                <TableHead className="w-[15%] font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Amount</TableHead>
+                                <TableHead className="w-[10%] font-black text-slate-400 uppercase text-[10px] tracking-widest text-center">Status</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
@@ -620,7 +635,7 @@ export default function SchedulingPage() {
                                     </span>
                                   </TableCell>
                                   <TableCell className="text-center">
-                                    {schedule.distributionOpen ? (
+                                    {isDistributionActive(schedule) ? (
                                         <Badge className="bg-emerald-50 text-emerald-700 border-none shadow-none font-bold px-3 py-1 uppercase tracking-widest text-[10px]">Active</Badge>
                                     ) : (
                                         <Badge className="bg-red-50 text-red-700 border-none shadow-none font-bold px-3 py-1 uppercase tracking-widest text-[10px]">Closed</Badge>
@@ -642,11 +657,11 @@ export default function SchedulingPage() {
                             <Table>
                               <TableHeader className="bg-purple-100/50">
                                 <TableRow className="border-purple-200/50">
-                                  <TableHead className="pl-6 font-black text-purple-400 uppercase text-[10px] tracking-widest py-4">Targeted</TableHead>
-                                  <TableHead className="font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Date Range</TableHead>
-                                  <TableHead className="font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Time</TableHead>
-                                  <TableHead className="font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Amount</TableHead>
-                                  <TableHead className="font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Status</TableHead>
+                                  <TableHead className="w-[35%] pl-6 font-black text-purple-400 uppercase text-[10px] tracking-widest py-4">Targeted</TableHead>
+                                  <TableHead className="w-[25%] font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Date Range</TableHead>
+                                  <TableHead className="w-[15%] font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Time</TableHead>
+                                  <TableHead className="w-[15%] font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Amount</TableHead>
+                                  <TableHead className="w-[10%] font-black text-purple-400 uppercase text-[10px] tracking-widest text-center">Status</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody className="bg-white">
@@ -675,7 +690,7 @@ export default function SchedulingPage() {
                                       </span>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                      {schedule.distributionOpen ? (
+                                      {isDistributionActive(schedule) ? (
                                           <Badge className="bg-purple-100 text-purple-700 border-none shadow-none font-bold px-3 py-1 uppercase tracking-widest text-[10px]">Extension Active</Badge>
                                       ) : (
                                           <Badge className="bg-red-50 text-red-700 border-none shadow-none font-bold px-3 py-1 uppercase tracking-widest text-[10px]">Closed</Badge>

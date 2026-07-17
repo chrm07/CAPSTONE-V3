@@ -506,8 +506,8 @@ export default function QRVerificationPage() {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-slate-800 text-base sm:text-lg uppercase tracking-tight whitespace-nowrap">{verificationResult.student?.name}</h3>
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 tracking-wider whitespace-nowrap mt-0.5">ID: {verificationResult.student?.id}</p>
+                        <h3 className="font-black text-slate-800 text-base sm:text-lg uppercase tracking-tight leading-tight">{verificationResult.student?.name}</h3>
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 tracking-wider mt-1">ID: {verificationResult.student?.id}</p>
                       </div>
                     </div>
 

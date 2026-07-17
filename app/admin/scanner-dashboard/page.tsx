@@ -24,6 +24,7 @@ import {
 
 import { collection, query, where, getDocs, updateDoc, doc, addDoc, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebase"
+import { isDistributionActive } from "@/lib/storage"
 import { useRouter } from "next/navigation"
 
 async function hashValue(value: string): Promise<string> {
@@ -92,7 +93,7 @@ export default function ScannerDashboardPage() {
         const studentData = matchedApp.data()
 
         // STRICT BARANGAY FILTERING
-        if (schedule?.distributionOpen && schedule?.targetBarangays && Array.isArray(schedule.targetBarangays)) {
+        if (isDistributionActive(schedule) && schedule?.targetBarangays && Array.isArray(schedule.targetBarangays)) {
           if (schedule.targetBarangays.length > 0 && !schedule.targetBarangays.includes(studentData.barangay)) {
             toast({ 
               variant: "destructive", 
@@ -181,7 +182,7 @@ export default function ScannerDashboardPage() {
                   <p className="text-sm sm:text-base text-slate-500 font-medium mt-1">Search or scan a scholar to confirm their payout.</p>
                 </div>
               </div>
-              {!schedule?.distributionOpen && (
+              {!isDistributionActive(schedule) && (
                 <Badge variant="destructive" className="px-4 py-2 font-black uppercase tracking-widest self-start sm:self-auto">
                   Distribution is Closed
                 </Badge>
@@ -190,7 +191,7 @@ export default function ScannerDashboardPage() {
           </div>
 
           <Card className="rounded-3xl border-slate-200 shadow-xl overflow-hidden bg-white">
-            <div className={`h-2 w-full ${schedule?.distributionOpen ? 'bg-indigo-600' : 'bg-red-500'}`} />
+            <div className={`h-2 w-full ${isDistributionActive(schedule) ? 'bg-indigo-600' : 'bg-red-500'}`} />
             <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-6">
               <CardTitle className="text-lg font-black uppercase tracking-tight text-slate-800">Scan or Lookup Scholar</CardTitle>
               <CardDescription>Use a barcode scanner to scan the QR code, or manually type the Student ID, Name, or Email.</CardDescription>
@@ -277,7 +278,7 @@ export default function ScannerDashboardPage() {
                         </>
                       ) : (
                         <>
-                          {schedule?.distributionOpen ? (
+                          {isDistributionActive(schedule) ? (
                              <AlertDialog>
                                <AlertDialogTrigger asChild>
                                  <Button 

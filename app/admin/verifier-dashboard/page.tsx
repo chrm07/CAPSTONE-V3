@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/auth-context"
 import { PermissionGuard } from "@/components/permission-guard"
+import { getDefaultAdminRoute } from "@/lib/storage"
 import { ApplicationsTable } from "@/components/applications-table"
 import { Shield, Clock, CheckCircle, FileText, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -48,12 +49,14 @@ export default function VerifierDashboard() {
   useEffect(() => {
     if (authLoading) return
 
-    // 🔥 FIX: Removed `!user` so it doesn't trigger on logout. 
-    // Now it ONLY triggers if a logged-in user lacks the right role.
-    if (user && user.role === 'admin' && user.adminRole !== 'verifier_staff' && user.adminRole !== 'head_admin') {
-      router.replace("/admin/dashboard")
-      toast({ variant: "destructive", title: "Access Denied", description: "You don't have permission to access the verifier dashboard." })
-      return
+    if (user && user.role === 'admin') {
+      const role = user.adminRole as string
+      const hasAccess = role === "verifier_staff" || role === "head_admin" || role === "admin" || (user.permissions?.qrVerification === true)
+      if (!hasAccess) {
+        router.replace(getDefaultAdminRoute(user))
+        toast({ variant: "destructive", title: "Access Denied", description: "You don't have permission to access the verifier dashboard." })
+        return
+      }
     }
 
     const appsQ = query(collection(db, "applications"));

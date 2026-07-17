@@ -10,21 +10,11 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { AlertCircle, Eye, EyeOff, GraduationCap, Shield, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
+import { getDefaultAdminRoute } from "@/lib/storage"
 
-// Exact routing logic to their specific dashboards
 const getRedirectPath = (userData: any) => {
   if (userData.role === "student") return "/student/dashboard"
-  
-  // Specific Admin Role Routing
-  switch (userData.adminRole) {
-    case "scanner_staff":
-      return "/admin/scanner-dashboard" 
-    case "verifier_staff":
-      return "/admin/verifier-dashboard" 
-    case "head_admin":
-    default:
-      return "/admin/dashboard" 
-  }
+  return getDefaultAdminRoute(userData)
 }
 
 export default function LoginPage() {

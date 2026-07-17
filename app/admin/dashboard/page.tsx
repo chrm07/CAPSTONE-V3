@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar" // 🔥 ADDED AVATAR IMPORTS
 import { useAuth } from "@/contexts/auth-context"
+import { hasPermission, getDefaultAdminRoute } from "@/lib/storage"
 
 // FIRESTORE REAL-TIME UTILS
 import { collection, onSnapshot, query } from "firebase/firestore"
@@ -67,7 +68,6 @@ export default function AdminDashboard() {
       if (user.role === "admin") {
         const currentAdminRole = user.adminRole || "head_admin"
 
-        // CORRECTED ROUTING LOGIC HERE
         if (currentAdminRole === "scanner_staff") {
           router.replace("/admin/scanner-dashboard")
           return
@@ -75,6 +75,12 @@ export default function AdminDashboard() {
         
         if (currentAdminRole === "verifier_staff") {
           router.replace("/admin/verifier-dashboard")
+          return
+        }
+
+        // Staff without "dashboard" permission → redirect to first permitted page
+        if (!hasPermission(user, "dashboard")) {
+          router.replace(getDefaultAdminRoute(user))
           return
         }
 
@@ -153,8 +159,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const currentAdminRole = user?.adminRole || "head_admin"
-  if (authLoading || isLoading || !user || currentAdminRole !== "head_admin") {
+  if (authLoading || isLoading || !user) {
     return (
       <AdminLayout>
         <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-emerald-600">

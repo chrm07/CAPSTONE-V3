@@ -22,7 +22,7 @@ import {
 
 import { collection, query, where, onSnapshot, doc, deleteDoc, addDoc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase" 
-import { createDocumentDb, createApplicationDb } from "@/lib/storage"
+import { createDocumentDb, createApplicationDb, notifyAdminsDb, isSubmissionActive } from "@/lib/storage"
 
 const REQUIRED_DOC_TYPES = [
   { id: "app_form", name: "Filled-out Application Form" },
@@ -83,7 +83,7 @@ export default function StudentDocumentsPage() {
 
   // Automatically locks the portal if submitted (pending or approved). Unlocks if rejected (Resubmit).
   const isActuallySubmitted = application?.status === 'pending' || application?.status === 'approved';
-  const canUpload = schedule?.submissionOpen && !isActuallySubmitted && !application?.isClaimed;
+  const canUpload = isSubmissionActive(schedule) && !isActuallySubmitted && !application?.isClaimed;
   const isLocked = !canUpload;
   
   // Calculate completed count purely from database documents
@@ -217,17 +217,13 @@ export default function StudentDocumentsPage() {
         type: "submission"
       })
 
-      await addDoc(collection(db, "notifications"), {
-        to: "admin",
-        senderId: user.id,
-        userId: "admin", 
-        message: isResubmission 
+      await notifyAdminsDb(
+        isResubmission ? "Application Resubmitted" : "New Application Submitted",
+        isResubmission 
           ? `${profile.fullName || user.name} has corrected and resubmitted their documents.`
           : `${profile.fullName || user.name} has submitted a new application.`,
-        link: "/admin/applications",
-        read: false,
-        createdAt: new Date().toISOString()
-      })
+        "/admin/applications"
+      )
 
       toast({ 
         title: isResubmission ? "Application Resubmitted!" : "Application Submitted!", 
@@ -290,7 +286,7 @@ export default function StudentDocumentsPage() {
           </Alert>
         )}
 
-        {!schedule?.submissionOpen && (
+        {!isSubmissionActive(schedule) && (
           <div className="bg-slate-50 border-2 border-slate-200 p-8 rounded-3xl flex flex-col md:flex-row items-start md:items-center gap-6 shadow-sm animate-in zoom-in-95">
             <div className="bg-slate-200 p-4 rounded-full shrink-0">
               <CalendarDays className="h-8 w-8 text-slate-500" />
@@ -353,7 +349,7 @@ export default function StudentDocumentsPage() {
           </div>
         </div>
 
-        <div className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3 ${!schedule?.submissionOpen ? "opacity-60 grayscale" : ""}`}>
+        <div className={`grid gap-6 md:grid-cols-2 lg:grid-cols-3 ${!isSubmissionActive(schedule) ? "opacity-60 grayscale" : ""}`}>
           {REQUIRED_DOC_TYPES.map((req) => {
             const dbDoc = documents.find(d => (d.categoryName || d.name) === req.name)
             const hasDoc = !!dbDoc
@@ -415,7 +411,7 @@ export default function StudentDocumentsPage() {
                         <div className="bg-slate-100 rounded-2xl p-4 text-center border border-slate-200">
                           <Lock className="h-5 w-5 mx-auto mb-1 text-slate-400" />
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                            {!schedule?.submissionOpen ? "Submissions Closed" : "Locked"}
+                            {!isSubmissionActive(schedule) ? "Submissions Closed" : "Locked"}
                           </span>
                         </div>
                       ) : (

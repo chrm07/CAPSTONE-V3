@@ -5,7 +5,7 @@ import React from "react"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { hasPermission } from "@/lib/storage"
+import { hasPermission, getDefaultAdminRoute } from "@/lib/storage"
 import { useToast } from "@/components/ui/use-toast"
 
 interface PermissionGuardProps {
@@ -17,11 +17,13 @@ interface PermissionGuardProps {
 export function PermissionGuard({ 
   children, 
   permission, 
-  fallbackUrl = "/admin/dashboard" 
+  fallbackUrl 
 }: PermissionGuardProps) {
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
+
+  const effectiveFallback = fallbackUrl || (user ? getDefaultAdminRoute(user) : "/login")
 
   useEffect(() => {
     if (!isLoading && user && user.role === "admin") {
@@ -31,10 +33,10 @@ export function PermissionGuard({
           title: "Access Denied",
           description: "You don't have permission to access this page.",
         })
-        router.push(fallbackUrl)
+        router.push(effectiveFallback)
       }
     }
-  }, [user, isLoading, permission, router, toast, fallbackUrl])
+  }, [user, isLoading, permission, router, toast, effectiveFallback])
 
   if (isLoading) {
     return (
