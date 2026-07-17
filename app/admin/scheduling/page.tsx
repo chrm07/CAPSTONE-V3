@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { PermissionGuard } from "@/components/permission-guard"
+import { DataPagination } from "@/components/data-pagination"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   CalendarDays, Plus, Loader2, Banknote, Clock, MapPin, StopCircle, UploadCloud, RotateCcw, ChevronDown, ChevronRight, Search, Edit, Trash2, Archive, Users
@@ -50,6 +51,8 @@ export default function SchedulingPage() {
   
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null)
   const [historyYearFilter, setHistoryYearFilter] = useState("all")
+  const [historyPage, setHistoryPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   const [isSubModalOpen, setIsSubModalOpen] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -426,6 +429,16 @@ export default function SchedulingPage() {
     return scheduleHistory.filter(h => new Date(h.endedAt).getFullYear().toString() === historyYearFilter);
   }, [scheduleHistory, historyYearFilter]);
 
+  const paginatedHistory = useMemo(() => {
+    const start = (historyPage - 1) * ITEMS_PER_PAGE;
+    return filteredHistory.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredHistory, historyPage]);
+
+  useEffect(() => {
+    const maxPage = Math.ceil(filteredHistory.length / ITEMS_PER_PAGE);
+    if (historyPage > maxPage && maxPage > 0) setHistoryPage(maxPage);
+  }, [filteredHistory.length, historyPage]);
+
   const filteredBarangays = useMemo(() => {
     return barangaysList.filter(b => b.name.toLowerCase().includes(barangaySearch.toLowerCase()));
   }, [barangaysList, barangaySearch]);
@@ -715,7 +728,7 @@ export default function SchedulingPage() {
                   
                   <div className="flex items-center gap-3 w-full sm:w-auto bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
                     <CalendarDays className="h-5 w-5 text-slate-400 ml-2 shrink-0" />
-                    <Select value={historyYearFilter} onValueChange={setHistoryYearFilter}>
+                    <Select value={historyYearFilter} onValueChange={(value) => { setHistoryYearFilter(value); setHistoryPage(1) }}>
                       <SelectTrigger className="w-full sm:w-[150px] bg-transparent border-none shadow-none font-black uppercase tracking-widest text-slate-800 h-10">
                         <SelectValue placeholder="Select Year" />
                       </SelectTrigger>
@@ -739,6 +752,7 @@ export default function SchedulingPage() {
                       <p className="text-xs mt-1">Past cycles will appear here after they are ended.</p>
                     </div>
                   ) : (
+                    <>
                     <div className="overflow-x-auto w-full">
                       <Table className="min-w-full">
                         <TableHeader className="bg-white">
@@ -751,7 +765,7 @@ export default function SchedulingPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody className="bg-white">
-                          {filteredHistory.map((hist) => {
+                          {paginatedHistory.map((hist) => {
                             const isExpanded = expandedHistoryId === hist.id;
                             return (
                               <React.Fragment key={hist.id}>
@@ -848,6 +862,14 @@ export default function SchedulingPage() {
                         </TableBody>
                       </Table>
                     </div>
+                    <DataPagination
+                      currentPage={historyPage}
+                      totalPages={Math.ceil(filteredHistory.length / ITEMS_PER_PAGE)}
+                      onPageChange={setHistoryPage}
+                      totalItems={filteredHistory.length}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                    />
+                    </>
                   )}
                 </CardContent>
               </Card>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { AdminLayout } from "@/components/admin-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/contexts/auth-context"
+import { DataPagination } from "@/components/data-pagination"
 
 // 🔥 IMPORT FIRESTORE REAL-TIME UTILS
 import { collection, onSnapshot, query, where } from "firebase/firestore"
@@ -41,6 +42,8 @@ export default function StaffManagementPage() {
   const [showPassword, setShowPassword] = useState(false)
   
   const [newStaff, setNewStaff] = useState({ name: "", email: "", password: "", adminRole: "verifier_staff" as AdminRole })
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
     if (user && !hasPermission(user, "staff-management")) {
@@ -114,6 +117,16 @@ export default function StaffManagementPage() {
       default: return <Users className="h-3 w-3 mr-1" />
     }
   }
+
+  const paginatedStaff = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return staffMembers.slice(start, start + ITEMS_PER_PAGE);
+  }, [staffMembers, currentPage]);
+
+  useEffect(() => {
+    const maxPage = Math.ceil(staffMembers.length / ITEMS_PER_PAGE);
+    if (currentPage > maxPage && maxPage > 0) setCurrentPage(maxPage);
+  }, [staffMembers.length, currentPage]);
 
   if (!user || !hasPermission(user, "staff-management")) return null
 
@@ -224,7 +237,7 @@ export default function StaffManagementPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    staffMembers.map((staff) => (
+                    paginatedStaff.map((staff) => (
                       <TableRow key={staff.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                         <TableCell className="pl-8 py-4 align-middle">
                           <div className="flex flex-col">
@@ -270,6 +283,13 @@ export default function StaffManagementPage() {
                 </TableBody>
               </Table>
             </div>
+            <DataPagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(staffMembers.length / ITEMS_PER_PAGE)}
+              onPageChange={setCurrentPage}
+              totalItems={staffMembers.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
           </CardContent>
         </Card>
       </div>

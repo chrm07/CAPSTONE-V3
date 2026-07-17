@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { PermissionGuard } from "@/components/permission-guard"
+import { DataPagination } from "@/components/data-pagination"
 import { 
   Search, MapPin, Loader2, FileText, Mail, GraduationCap, School, 
   CheckCircle, History, CalendarDays, Clock, XCircle, ChevronRight, AlertCircle, Eye, ExternalLink, X, ZoomIn, ZoomOut
@@ -50,6 +51,10 @@ export default function ApplicationsPage() {
   
   // 🔥 NEW: Dynamic Barangays State
   const [barangaysList, setBarangaysList] = useState<string[]>([]);
+
+  const [activePage, setActivePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   const [studentDocs, setStudentDocs] = useState<any[]>([]);
@@ -317,6 +322,26 @@ export default function ApplicationsPage() {
     }).sort((a, b) => new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime());
   }, [historyApps, searchQuery, barangayFilter, statusFilter, yearFilter]);
 
+  const paginatedActiveApps = useMemo(() => {
+    const start = (activePage - 1) * ITEMS_PER_PAGE;
+    return filteredActiveApps.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredActiveApps, activePage]);
+
+  useEffect(() => {
+    const maxPage = Math.ceil(filteredActiveApps.length / ITEMS_PER_PAGE);
+    if (activePage > maxPage && maxPage > 0) setActivePage(maxPage);
+  }, [filteredActiveApps.length, activePage]);
+
+  useEffect(() => {
+    const maxPage = Math.ceil(filteredHistoryApps.length / ITEMS_PER_PAGE);
+    if (historyPage > maxPage && maxPage > 0) setHistoryPage(maxPage);
+  }, [filteredHistoryApps.length, historyPage]);
+
+  const paginatedHistoryApps = useMemo(() => {
+    const start = (historyPage - 1) * ITEMS_PER_PAGE;
+    return filteredHistoryApps.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredHistoryApps, historyPage]);
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     try {
@@ -364,7 +389,7 @@ export default function ApplicationsPage() {
             <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden bg-white">
               <div className="h-2 bg-gradient-to-r from-blue-400 to-blue-600" />
               
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setActivePage(1); setHistoryPage(1) }}>
                 <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-6 flex flex-col xl:flex-row justify-between gap-6 p-6 md:p-8">
                   
                   <div className="space-y-4">
@@ -388,12 +413,12 @@ export default function ApplicationsPage() {
                       <Input
                         placeholder="Search name/email..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => { setSearchQuery(e.target.value); setActivePage(1); setHistoryPage(1) }}
                         className="pl-11 rounded-2xl bg-white border-slate-200 focus-visible:ring-blue-500 h-12 font-medium shadow-sm"
                       />
                     </div>
 
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setActivePage(1); setHistoryPage(1) }}>
                       <SelectTrigger className="w-full sm:flex-1 xl:w-[160px] h-12 rounded-2xl border-slate-200 bg-white font-medium shadow-sm focus:ring-blue-500 pl-4">
                         <div className="flex items-center gap-2 text-slate-600">
                           <span className="whitespace-nowrap">
@@ -409,7 +434,7 @@ export default function ApplicationsPage() {
                       </SelectContent>
                     </Select>
 
-                    <Select value={barangayFilter} onValueChange={setBarangayFilter}>
+                    <Select value={barangayFilter} onValueChange={(value) => { setBarangayFilter(value); setActivePage(1); setHistoryPage(1) }}>
                       <SelectTrigger className="w-full sm:flex-1 xl:w-[180px] h-12 rounded-2xl border-slate-200 bg-white font-medium shadow-sm focus:ring-blue-500 pl-4">
                         <div className="flex items-center gap-2 text-slate-600">
                           <MapPin className="h-4 w-4 text-blue-600 shrink-0" />
@@ -430,7 +455,7 @@ export default function ApplicationsPage() {
                     </Select>
 
                     {activeTab === "history" && (
-                      <Select value={yearFilter} onValueChange={setYearFilter}>
+                      <Select value={yearFilter} onValueChange={(value) => { setYearFilter(value); setHistoryPage(1) }}>
                         <SelectTrigger className="w-full sm:flex-1 xl:w-[130px] h-12 rounded-2xl border-slate-200 bg-white font-medium shadow-sm focus:ring-blue-500 pl-4 transition-all">
                           <div className="flex items-center gap-2 text-slate-600">
                             <CalendarDays className="h-4 w-4 text-blue-600 shrink-0" />
@@ -468,6 +493,7 @@ export default function ApplicationsPage() {
                             <p className="text-xs mt-1">Try adjusting your search or filters.</p>
                           </div>
                         ) : (
+                          <>
                           <div className="overflow-x-auto">
                             <Table>
                               <TableHeader className="bg-slate-50/50">
@@ -480,7 +506,7 @@ export default function ApplicationsPage() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody className="bg-white">
-                                {filteredActiveApps.map((app) => (
+                                {paginatedActiveApps.map((app) => (
                                   <TableRow key={app.id} className="hover:bg-blue-50/30 transition-colors border-slate-100">
                                     <TableCell className="pl-8 py-4 align-middle">
                                       <div className="flex items-center gap-4">
@@ -557,7 +583,16 @@ export default function ApplicationsPage() {
                               </TableBody>
                             </Table>
                           </div>
-                        )}
+                          <DataPagination
+                            currentPage={activePage}
+                            totalPages={Math.ceil(filteredActiveApps.length / ITEMS_PER_PAGE)}
+                            onPageChange={setActivePage}
+                            totalItems={filteredActiveApps.length}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            activeBtnClass="bg-blue-600 text-white hover:bg-blue-700 shadow-sm border-blue-600"
+                          />
+                        </>
+                      )}
                       </TabsContent>
 
                       <TabsContent value="history" className="m-0 border-none outline-none">
@@ -570,6 +605,7 @@ export default function ApplicationsPage() {
                             <p className="text-xs mt-1">Try adjusting your search or filters.</p>
                           </div>
                         ) : (
+                          <>
                           <div className="overflow-x-auto">
                             <Table>
                               <TableHeader className="bg-slate-50/50">
@@ -582,7 +618,7 @@ export default function ApplicationsPage() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody className="bg-white">
-                                {filteredHistoryApps.map((app) => (
+                                {paginatedHistoryApps.map((app) => (
                                   <TableRow key={app.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                                     
                                     <TableCell className="pl-8 py-4 align-middle">
@@ -660,6 +696,15 @@ export default function ApplicationsPage() {
                               </TableBody>
                             </Table>
                           </div>
+                          <DataPagination
+                            currentPage={historyPage}
+                            totalPages={Math.ceil(filteredHistoryApps.length / ITEMS_PER_PAGE)}
+                            onPageChange={setHistoryPage}
+                            totalItems={filteredHistoryApps.length}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            activeBtnClass="bg-blue-600 text-white hover:bg-blue-700 shadow-sm border-blue-600"
+                          />
+                          </>
                         )}
                       </TabsContent>
                     </>

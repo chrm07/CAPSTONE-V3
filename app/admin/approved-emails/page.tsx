@@ -21,6 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PermissionGuard } from "@/components/permission-guard"
+import { DataPagination } from "@/components/data-pagination"
 import { 
   Plus, Trash2, Mail, CheckCircle, XCircle, 
   Calendar, AlertCircle, Loader2, Undo, Search, ShieldCheck, Edit
@@ -53,6 +54,8 @@ export default function ApprovedEmailsPage() {
   const [addResults, setAddResults] = useState<{ success: string[]; failed: string[] }>({ success: [], failed: [] })
 
   const [deletingIds, setDeletingIds] = useState<Record<string, ReturnType<typeof setTimeout>>>({})
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   // State for Edit Dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -264,6 +267,18 @@ export default function ApprovedEmailsPage() {
     return emails.filter(e => e.email.toLowerCase().includes(searchQuery.toLowerCase()))
   }, [emails, searchQuery])
 
+  const paginatedEmails = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredEmails.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredEmails, currentPage])
+
+  useEffect(() => {
+    const maxPage = Math.ceil(filteredEmails.length / ITEMS_PER_PAGE)
+    if (currentPage > maxPage && maxPage > 0) {
+      setCurrentPage(maxPage)
+    }
+  }, [filteredEmails.length, currentPage])
+
   return (
     <PermissionGuard permission="approved-emails">
       <AdminLayout>
@@ -426,7 +441,7 @@ export default function ApprovedEmailsPage() {
                 <Input
                   placeholder="Search emails..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1) }}
                   className="pl-10 rounded-xl bg-slate-50 border-slate-200 focus-visible:ring-emerald-500 h-10 font-medium shadow-none"
                 />
               </div>
@@ -437,12 +452,13 @@ export default function ApprovedEmailsPage() {
                   <Loader2 className="h-10 w-10 animate-spin mb-4" />
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Loading directory...</p>
                 </div>
-              ) : filteredEmails.length === 0 ? (
+              ) : paginatedEmails.length === 0 ? (
                 <div className="py-24 text-center text-slate-400">
                   <Mail className="h-12 w-12 mx-auto mb-4 opacity-20" />
                   <p className="font-bold uppercase tracking-widest text-sm">No emails found.</p>
                 </div>
               ) : (
+                <>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-slate-50/50">
@@ -454,7 +470,7 @@ export default function ApprovedEmailsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="bg-white">
-                      {filteredEmails.map((email) => (
+                      {paginatedEmails.map((email) => (
                         deletingIds[email.id] ? (
                           <TableRow key={email.id} className="bg-red-50/80 hover:bg-red-50/80 border-b border-red-100/50">
                             <TableCell colSpan={4} className="py-3 px-8">
@@ -541,6 +557,14 @@ export default function ApprovedEmailsPage() {
                     </TableBody>
                   </Table>
                 </div>
+                <DataPagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(filteredEmails.length / ITEMS_PER_PAGE)}
+                  onPageChange={setCurrentPage}
+                  totalItems={filteredEmails.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                />
+                </>
               )}
             </CardContent>
           </Card>

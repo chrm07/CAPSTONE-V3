@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/ui/use-toast"
 import { PermissionGuard } from "@/components/permission-guard"
+import { DataPagination } from "@/components/data-pagination"
 import { 
   Search, MapPin, Loader2, Users, Mail, GraduationCap, School, CheckCircle, History, CalendarDays
 } from "lucide-react"
@@ -34,6 +35,10 @@ export default function ScholarsPage() {
   const [barangayFilter, setBarangayFilter] = useState("all")
   const [yearFilter, setYearFilter] = useState("all")
   
+  const [activePage, setActivePage] = useState(1)
+  const [historyPage, setHistoryPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
+
   // 🔥 NEW: Dynamic Barangays State
   const [barangaysList, setBarangaysList] = useState<string[]>([]) 
 
@@ -206,6 +211,26 @@ export default function ScholarsPage() {
     })
   }, [archivedScholars, searchQuery, barangayFilter, yearFilter])
 
+  const paginatedScholars = useMemo(() => {
+    const start = (activePage - 1) * ITEMS_PER_PAGE
+    return filteredScholars.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredScholars, activePage])
+
+  const paginatedArchivedScholars = useMemo(() => {
+    const start = (historyPage - 1) * ITEMS_PER_PAGE
+    return filteredArchivedScholars.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredArchivedScholars, historyPage])
+
+  useEffect(() => {
+    const maxPage = Math.ceil(filteredScholars.length / ITEMS_PER_PAGE)
+    if (activePage > maxPage && maxPage > 0) setActivePage(maxPage)
+  }, [filteredScholars.length, activePage])
+
+  useEffect(() => {
+    const maxPage = Math.ceil(filteredArchivedScholars.length / ITEMS_PER_PAGE)
+    if (historyPage > maxPage && maxPage > 0) setHistoryPage(maxPage)
+  }, [filteredArchivedScholars.length, historyPage])
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A"
     try {
@@ -232,7 +257,7 @@ export default function ScholarsPage() {
           <Card className="rounded-3xl border-slate-200 shadow-sm overflow-hidden bg-white">
             <div className="h-2 bg-gradient-to-r from-emerald-400 to-emerald-600" />
             
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); setActivePage(1); setHistoryPage(1) }}>
               <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-6 flex flex-col xl:flex-row justify-between gap-6 p-6 md:p-8">
                 
                 <div className="space-y-4">
@@ -258,13 +283,13 @@ export default function ScholarsPage() {
                     <Input
                       placeholder="Search by name or email..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => { setSearchQuery(e.target.value); setActivePage(1); setHistoryPage(1) }}
                       className="pl-11 rounded-2xl bg-white border-slate-200 focus-visible:ring-emerald-500 h-12 font-medium shadow-sm"
                     />
                   </div>
 
                   {/* Barangay Dropdown */}
-                  <Select value={barangayFilter} onValueChange={setBarangayFilter}>
+                  <Select value={barangayFilter} onValueChange={(value) => { setBarangayFilter(value); setActivePage(1); setHistoryPage(1) }}>
                     <SelectTrigger className="w-full sm:flex-1 xl:w-[200px] h-12 rounded-2xl border-slate-200 bg-white font-medium shadow-sm focus:ring-emerald-500 pl-4">
                       <div className="flex items-center gap-2 text-slate-600">
                         <MapPin className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -286,7 +311,7 @@ export default function ScholarsPage() {
 
                   {/* Year Dropdown (Only visible on History Tab) */}
                   {activeTab === "history" && (
-                    <Select value={yearFilter} onValueChange={setYearFilter}>
+                      <Select value={yearFilter} onValueChange={(value) => { setYearFilter(value); setHistoryPage(1) }}>
                       <SelectTrigger className="w-full sm:flex-1 xl:w-[150px] h-12 rounded-2xl border-slate-200 bg-white font-medium shadow-sm focus:ring-emerald-500 pl-4 transition-all">
                         <div className="flex items-center gap-2 text-slate-600">
                           <CalendarDays className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -325,6 +350,7 @@ export default function ScholarsPage() {
                           <p className="text-xs mt-1">Try adjusting your search or barangay filter.</p>
                         </div>
                       ) : (
+                        <>
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader className="bg-slate-50/50">
@@ -336,7 +362,7 @@ export default function ScholarsPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
-                              {filteredScholars.map((scholar) => (
+                              {paginatedScholars.map((scholar) => (
                                 <TableRow key={scholar.id} className="hover:bg-emerald-50/30 transition-colors border-slate-100">
                                   <TableCell className="pl-8 py-4 align-middle">
                                     <div className="flex items-center gap-4">
@@ -392,6 +418,14 @@ export default function ScholarsPage() {
                             </TableBody>
                           </Table>
                         </div>
+                        <DataPagination
+                          currentPage={activePage}
+                          totalPages={Math.ceil(filteredScholars.length / ITEMS_PER_PAGE)}
+                          onPageChange={setActivePage}
+                          totalItems={filteredScholars.length}
+                          itemsPerPage={ITEMS_PER_PAGE}
+                        />
+                        </>
                       )}
                     </TabsContent>
 
@@ -406,6 +440,7 @@ export default function ScholarsPage() {
                           <p className="text-xs mt-1">Try adjusting your search or filters.</p>
                         </div>
                       ) : (
+                        <>
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader className="bg-slate-50/50">
@@ -417,7 +452,7 @@ export default function ScholarsPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody className="bg-white">
-                              {filteredArchivedScholars.map((scholar) => (
+                              {paginatedArchivedScholars.map((scholar) => (
                                 <TableRow key={scholar.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                                   
                                   <TableCell className="pl-8 py-4 align-middle">
@@ -482,6 +517,14 @@ export default function ScholarsPage() {
                             </TableBody>
                           </Table>
                         </div>
+                        <DataPagination
+                          currentPage={historyPage}
+                          totalPages={Math.ceil(filteredArchivedScholars.length / ITEMS_PER_PAGE)}
+                          onPageChange={setHistoryPage}
+                          totalItems={filteredArchivedScholars.length}
+                          itemsPerPage={ITEMS_PER_PAGE}
+                        />
+                        </>
                       )}
                     </TabsContent>
                   </>

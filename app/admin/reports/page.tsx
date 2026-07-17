@@ -20,6 +20,7 @@ import {
 } from "recharts"
 
 import { PermissionGuard } from "@/components/permission-guard"
+import { DataPagination } from "@/components/data-pagination"
 import { collection, onSnapshot, query, where } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 
@@ -115,6 +116,8 @@ export default function ReportsPage() {
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null)
   const [historyYearFilter, setHistoryYearFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [studentPage, setStudentPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
 
   useEffect(() => {
     let unsubscribeUsers: () => void;
@@ -630,6 +633,13 @@ export default function ReportsPage() {
                               (s.barangay || "").toLowerCase().includes(searchQuery.toLowerCase())
                             );
 
+                            const totalStudentPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+                            const safePage = studentPage > totalStudentPages && totalStudentPages > 0 ? totalStudentPages : studentPage;
+                            const paginatedStudents = filteredStudents.slice(
+                              (safePage - 1) * ITEMS_PER_PAGE,
+                              safePage * ITEMS_PER_PAGE
+                            );
+
                             return (
                               <React.Fragment key={cycle}>
                                 <TableRow className={`cursor-pointer transition-colors border-slate-100 ${isExpanded ? "bg-emerald-50/50 border-b-emerald-100" : "hover:bg-slate-50/50"}`} 
@@ -732,7 +742,7 @@ export default function ReportsPage() {
                                               <Input 
                                                 placeholder="Search students..." 
                                                 value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                onChange={(e) => { setSearchQuery(e.target.value); setStudentPage(1) }}
                                                 className="pl-9 h-9 bg-white border-slate-200 focus-visible:ring-emerald-500 rounded-xl text-sm"
                                               />
                                             </div>
@@ -750,7 +760,7 @@ export default function ReportsPage() {
                                                   </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                  {filteredStudents.length > 0 ? filteredStudents.map(s => (
+                                                  {paginatedStudents.length > 0 ? paginatedStudents.map(s => (
                                                     <TableRow key={s.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                                                       <TableCell className="pl-4 py-3">
                                                         <div className="font-bold text-slate-800 text-sm whitespace-nowrap">{s.name}</div>
@@ -786,6 +796,13 @@ export default function ReportsPage() {
                                                 </TableBody>
                                               </Table>
                                             </div>
+                                            <DataPagination
+                                              currentPage={safePage}
+                                              totalPages={totalStudentPages}
+                                              onPageChange={setStudentPage}
+                                              totalItems={filteredStudents.length}
+                                              itemsPerPage={ITEMS_PER_PAGE}
+                                            />
                                           </CardContent>
                                         </Card>
 

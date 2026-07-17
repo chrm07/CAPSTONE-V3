@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { StudentLayout } from "@/components/student-layout"
 import { useAuth } from "@/contexts/auth-context"
+import { DataPagination } from "@/components/data-pagination"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { History, Clock, FileText, CheckCircle, XCircle, CalendarDays, GraduationCap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +16,8 @@ export default function HistoryPage() {
   const { user } = useAuth()
   const [history, setHistory] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 5
 
   useEffect(() => {
     if (!user) return
@@ -43,6 +46,16 @@ export default function HistoryPage() {
 
     return () => unsubscribe()
   }, [user])
+
+  const paginatedHistory = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return history.slice(start, start + ITEMS_PER_PAGE)
+  }, [history, currentPage])
+
+  useEffect(() => {
+    const maxPage = Math.ceil(history.length / ITEMS_PER_PAGE)
+    if (currentPage > maxPage && maxPage > 0) setCurrentPage(maxPage)
+  }, [history.length, currentPage])
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A"
@@ -95,7 +108,7 @@ export default function HistoryPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            {history.map((app) => (
+              {paginatedHistory.map((app) => (
               <Card key={app.id} className="rounded-3xl border-slate-200 shadow-sm overflow-hidden bg-white hover:shadow-md transition-shadow">
                 
                 {/* Dynamically assign top border color based on Unclaimed logic */}
@@ -201,10 +214,16 @@ export default function HistoryPage() {
                 </CardContent>
               </Card>
             ))}
+            <DataPagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(history.length / ITEMS_PER_PAGE)}
+              onPageChange={setCurrentPage}
+              totalItems={history.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
           </div>
         )}
       </div>
     </StudentLayout>
   )
 }
-//okay
