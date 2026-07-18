@@ -257,12 +257,12 @@ export default function StudentDashboard() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400 rounded-full filter blur-[80px] opacity-10 -mr-20 -mt-20 pointer-events-none"></div>
           
           <div className="relative p-6 md:p-8 flex flex-col gap-6">
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
               <div className="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center font-black text-emerald-700 text-3xl shrink-0 overflow-hidden border-2 border-emerald-200 shadow-inner">
                  {profilePicUrl ? <img src={profilePicUrl} alt={studentData.name} className="h-full w-full object-cover" /> : initial}
               </div>
-              <div>
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 uppercase">Welcome, {studentData.name.split(' ')[0]}!</h1>
+              <div className="text-center sm:text-left">
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 uppercase break-words">Welcome, {studentData.name.split(' ')[0]}!</h1>
                 <p className="text-slate-500 font-medium mt-1">Here is the current status of your scholarship application.</p>
               </div>
             </div>
