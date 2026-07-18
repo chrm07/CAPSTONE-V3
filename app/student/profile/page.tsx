@@ -400,17 +400,17 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-8 shadow-sm mt-8">
+        <div className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 p-4 sm:p-6 md:p-8 shadow-sm mt-4 sm:mt-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400 rounded-full filter blur-[100px] opacity-10 -mr-20 -mt-20"></div>
           
-          <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-8">
+          <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 md:gap-8">
             
             <div className="flex flex-col items-center gap-4 shrink-0">
               <div 
                 className="relative group cursor-pointer" 
                 onClick={() => document.getElementById('photo-upload')?.click()}
               >
-                <Avatar className="h-32 w-32 border-4 border-white shadow-lg ring-1 ring-slate-100">
+                <Avatar className="h-24 w-24 sm:h-28 sm:w-28 md:h-32 md:w-32 border-4 border-white shadow-lg ring-1 ring-slate-100">
                   <AvatarImage src={personalInfo.studentPhoto || undefined} className="object-cover" />
                   <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white text-5xl font-bold">
                     {personalInfo.fullName?.charAt(0) || "S"}
@@ -442,17 +442,18 @@ export default function ProfilePage() {
               <input type="file" id="photo-upload" className="hidden" accept="image/*" onChange={handlePhotoSelect} disabled={isUploadingPhoto} />
             </div>
 
-            <div className="flex-1 text-center sm:text-left pt-1">
-              <h1 className="text-4xl font-black tracking-tight text-slate-900">
+            <div className="flex-1 text-center sm:text-left pt-1 min-w-0 max-w-full">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight text-slate-900 break-words text-balance">
                 {personalInfo.fullName || user.name || "Student Profile"}
               </h1>
-              <p className="text-slate-500 font-medium flex items-center justify-center sm:justify-start gap-2 mt-2 text-lg">
-                <Mail className="h-5 w-5 text-emerald-500" /> {personalInfo.email}
+              <p className="text-slate-500 font-medium flex items-center justify-center sm:justify-start gap-2 mt-2 text-sm sm:text-base md:text-lg max-w-full">
+                <Mail className="h-5 w-5 text-emerald-500 shrink-0" /> 
+                <span className="break-all">{personalInfo.email}</span>
               </p>
               
-              <div className="mt-4 inline-flex bg-amber-50 border border-amber-200 p-3 rounded-2xl items-start gap-3 shadow-sm max-w-lg text-left">
+              <div className="mt-4 inline-flex bg-amber-50 border border-amber-200 p-3 rounded-2xl items-start gap-3 shadow-sm w-full max-w-lg text-left">
                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                 <p className="text-xs text-amber-800 font-bold leading-relaxed">
+                 <p className="text-xs text-amber-800 font-bold leading-relaxed break-words">
                    <span className="uppercase tracking-wider font-black mr-1">Photo Requirement:</span>
                    Use your own face. We verify this during QR scanning for financial distribution. Incorrect photos may affect your assistance.
                  </p>
