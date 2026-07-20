@@ -235,6 +235,10 @@ export default function ApplicationsPage() {
 
   const handleUpdateStatus = async (status: "approved" | "rejected", feedbackText?: string) => {
     if (!selectedApp || selectedApp.archivedAt) return;
+    if (selectedApp.status === "approved" && status === "rejected") {
+      toast({ variant: "destructive", title: "Error", description: "Approved applications can no longer be marked for resubmission." });
+      return;
+    }
     setIsUpdating(true);
 
     try {
@@ -816,6 +820,7 @@ export default function ApplicationsPage() {
                       </Badge>
                     ) : (
                       <div className="flex gap-3 w-full sm:w-auto">
+                        {selectedApp.status !== "approved" && (
                         <Button 
                           variant="outline" 
                           onClick={() => setIsRejectDialogOpen(true)}
@@ -824,6 +829,7 @@ export default function ApplicationsPage() {
                         >
                           Resubmit
                         </Button>
+                        )}
                         <Button 
                           onClick={() => handleUpdateStatus("approved")}
                           disabled={isUpdating || selectedApp.status === 'approved' || validUploadedDocsCount < REQUIRED_DOCS.length}

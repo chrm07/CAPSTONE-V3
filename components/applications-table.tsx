@@ -182,6 +182,10 @@ export function ApplicationsTable({ limit }: ApplicationsTableProps) {
 
   const handleRejectApplication = async () => {
     if (!applicationToReject || !rejectionReason.trim()) return
+    if (applicationToReject.status === "approved") {
+      toast({ variant: "destructive", title: "Error", description: "Approved applications can no longer be rejected." })
+      return
+    }
     setIsRejecting(true)
     try {
       await updateApplicationStatusDb(applicationToReject.id, "rejected", rejectionReason.trim())

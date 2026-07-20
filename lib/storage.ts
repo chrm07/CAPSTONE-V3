@@ -370,6 +370,10 @@ export async function createApplicationDb(data: Omit<Application, "id" | "create
 }
 
 export async function updateApplicationStatusDb(id: string, status: "pending" | "approved" | "rejected", feedback?: string) {
+  const appSnap = await getDoc(doc(db, "applications", id))
+  if (appSnap.exists() && appSnap.data().status === "approved") {
+    throw new Error("Approved applications can no longer be modified.")
+  }
   await updateDoc(doc(db, "applications", id), { status, feedback: feedback || "", updatedAt: new Date().toISOString() })
 }
 
